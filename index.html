@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f2937">
+<title>PDF Notizen</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  :root {
+    --bar: #1f2937; --bar2: #111827; --text: #f9fafb; --muted: #9ca3af;
+    --accent: #3b82f6; --bg: #4b5563;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg); color: var(--text);
+    display: flex; flex-direction: column; overflow: hidden;
+    touch-action: manipulation; user-select: none;
+  }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+
+  /* Obere Leiste */
+  #top {
+    background: var(--bar); display: flex; align-items: center; gap: 4px;
+    padding: calc(env(safe-area-inset-top) + 6px) 6px 6px;
+  }
+  #top .title { flex: 1; min-width: 0; padding: 0 6px; }
+  #docname { font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #pageinfo { font-size: 12px; color: var(--muted); }
+  .tbtn { padding: 8px 10px; border-radius: 10px; font-size: 15px; white-space: nowrap; }
+  .tbtn:active { background: #374151; }
+  .tbtn.primary { background: var(--accent); font-weight: 600; }
+  .tbtn:disabled { opacity: .35; }
+
+  /* Anzeige */
+  #viewer { flex: 1; overflow: auto; position: relative; touch-action: pan-x pan-y; }
+  #pages { width: max-content; min-width: 100%; padding: 8px 8px 24px; transform-origin: 0 0; }
+  .page { position: relative; margin: 0 auto 10px; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.4); }
+  .page canvas { position: absolute; left: 0; top: 0; display: block; }
+  .page canvas.ink { touch-action: pan-x pan-y; }
+  body.drawing .page canvas.ink { touch-action: none; }
+
+  /* Startbildschirm */
+  #empty {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center; padding: 24px; gap: 16px;
+  }
+  #empty .big { font-size: 64px; }
+  #empty p { color: #e5e7eb; max-width: 320px; line-height: 1.5; margin: 0; }
+  #empty .tbtn.primary { font-size: 18px; padding: 14px 24px; }
+  body.has-doc #empty { display: none; }
+  body:not(.has-doc) .needs-doc { visibility: hidden; }
+
+  /* Untere Leiste */
+  #bottom { background: var(--bar); padding-bottom: env(safe-area-inset-bottom); }
+  #options {
+    display: none; align-items: center; justify-content: center; gap: 10px;
+    padding: 8px; background: var(--bar2); flex-wrap: wrap;
+  }
+  body.show-options #options { display: flex; }
+  .swatch { width: 32px; height: 32px; border-radius: 50%; border: 3px solid transparent; }
+  .swatch.on { border-color: #fff; }
+  .sep { width: 1px; height: 26px; background: #374151; }
+  .size { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+  .size span { display: block; background: #fff; border-radius: 50%; }
+  .size.on { background: #374151; }
+  #tools { display: flex; justify-content: space-around; padding: 4px 2px; }
+  .tool {
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    padding: 6px 4px; border-radius: 12px; min-width: 56px; font-size: 11px; color: var(--muted);
+  }
+  .tool .ic { font-size: 22px; line-height: 1; }
+  .tool.on { background: #374151; color: #fff; }
+  .tool:disabled { opacity: .35; }
+
+  /* Fenster (Dialoge) */
+  .modal {
+    position: fixed; inset: 0; background: rgba(0,0,0,.55); display: flex;
+    align-items: center; justify-content: center; padding: 16px; z-index: 10;
+  }
+  .modal[hidden] { display: none; }
+  .box {
+    background: #fff; color: #111827; border-radius: 16px; padding: 18px;
+    width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 12px;
+  }
+  .box h2 { margin: 0; font-size: 18px; }
+  .box p { margin: 0; line-height: 1.45; color: #374151; font-size: 15px; }
+  .box textarea {
+    width: 100%; min-height: 110px; font: inherit; font-size: 16px; padding: 10px;
+    border: 1px solid #d1d5db; border-radius: 10px; resize: vertical; user-select: text;
+  }
+  .row { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+  .box .tbtn { color: #111827; background: #e5e7eb; }
+  .box .tbtn.primary { color: #fff; background: var(--accent); }
+  .box .tbtn.full { width: 100%; padding: 14px; font-size: 16px; }
+
+  #busy {
+    position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex;
+    align-items: center; justify-content: center; z-index: 20; font-size: 17px;
+  }
+  #busy[hidden] { display: none; }
+  #busy div { background: var(--bar); padding: 16px 22px; border-radius: 14px; }
+</style>
+</head>
+<body>
+
+<header id="top">
+  <button class="tbtn" id="btnOpen" title="PDF öffnen">📂</button>
+  <div class="title">
+    <div id="docname">PDF Notizen</div>
+    <div id="pageinfo"></div>
+  </div>
+  <button class="tbtn needs-doc" id="btnZoomOut" title="Verkleinern">−</button>
+  <button class="tbtn needs-doc" id="btnZoomIn" title="Vergrößern">+</button>
+  <button class="tbtn needs-doc" id="btnSave" title="Speichern">💾</button>
+  <button class="tbtn primary needs-doc" id="btnShare">Senden</button>
+</header>
+
+<main id="viewer">
+  <div id="pages"></div>
+  <div id="empty">
+    <div class="big">📄</div>
+    <p>Öffne ein PDF, mach deine Notizen darauf und schick es direkt per WhatsApp oder Mail weiter.</p>
+    <button class="tbtn primary" id="btnOpen2">PDF öffnen</button>
+    <p style="font-size:13px;color:#d1d5db">Tipp: Du kannst ein PDF auch aus WhatsApp oder Gmail über „Teilen“ an diese App schicken.</p>
+  </div>
+</main>
+
+<footer id="bottom">
+  <div id="options">
+    <div id="swatches" style="display:flex;gap:8px"></div>
+    <div class="sep"></div>
+    <div id="sizes" style="display:flex;gap:4px"></div>
+  </div>
+  <nav id="tools">
+    <button class="tool on" data-tool="hand"><span class="ic">✋</span>Lesen</button>
+    <button class="tool needs-doc" data-tool="pen"><span class="ic">✏️</span>Stift</button>
+    <button class="tool needs-doc" data-tool="marker"><span class="ic">🖍️</span>Marker</button>
+    <button class="tool needs-doc" data-tool="text"><span class="ic">💬</span>Text</button>
+    <button class="tool needs-doc" data-tool="eraser"><span class="ic">🧽</span>Radierer</button>
+    <button class="tool needs-doc" id="btnUndo" disabled><span class="ic">↶</span>Zurück</button>
+  </nav>
+</footer>
+
+<input type="file" id="fileInput" accept="application/pdf,.pdf" hidden>
+
+<div class="modal" id="textModal" hidden>
+  <div class="box">
+    <h2>Notiz schreiben</h2>
+    <textarea id="textInput" placeholder="Dein Text …"></textarea>
+    <div class="row">
+      <button class="tbtn" id="textCancel">Abbrechen</button>
+      <button class="tbtn primary" id="textOk">Einfügen</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="shareModal" hidden>
+  <div class="box">
+    <h2>PDF senden</h2>
+    <p id="shareText"></p>
+    <button class="tbtn primary full" id="shareNow">📤 Jetzt senden (WhatsApp, Mail …)</button>
+    <button class="tbtn full" id="shareDownload">💾 Auf dem Handy speichern</button>
+    <div class="row"><button class="tbtn" id="shareClose">Schließen</button></div>
+  </div>
+</div>
+
+<div id="busy" hidden><div id="busyText">Bitte warten …</div></div>
+
+<script src="lib/pdf.min.js"></script>
+<script src="lib/pdf-lib.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
