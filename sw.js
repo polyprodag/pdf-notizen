@@ -1,6 +1,6 @@
 // Service Worker: macht die App offline nutzbar und empfängt PDFs,
 // die man aus anderen Apps (WhatsApp, Gmail, Dateien) an diese App "teilt".
-const CACHE = 'pdf-notizen-v2';
+const CACHE = 'pdf-notizen-v3';
 const FILES = [
   './', './index.html', './app.js', './manifest.webmanifest',
   './icon-192.png', './icon-512.png',
@@ -31,7 +31,7 @@ self.addEventListener('fetch', (e) => {
         if (file) {
           const cache = await caches.open('shared-files');
           await cache.put('shared-file', new Response(file, {
-            headers: { 'content-type': 'application/pdf', 'x-file-name': encodeURIComponent(file.name || 'Dokument.pdf') },
+            headers: { 'content-type': file.type || 'application/octet-stream', 'x-file-name': encodeURIComponent(file.name || 'Datei') },
           }));
         }
       } catch (err) { /* ignorieren, App öffnet sich trotzdem */ }

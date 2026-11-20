@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1f2937">
-<title>PDF Notizen</title>
+<title>File Reader</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -98,6 +98,15 @@
   .box .tbtn.primary { color: #fff; background: var(--accent); }
   .box .tbtn.full { width: 100%; padding: 14px; font-size: 16px; }
 
+  #fileInfo { font-size: 14px; color: #6b7280; word-break: break-all; }
+  #filePreview img, #filePreview video { max-width: 100%; max-height: 40vh; display: block; margin: 0 auto; border-radius: 8px; }
+  #filePreview audio { width: 100%; }
+  #filePreview pre {
+    max-height: 40vh; overflow: auto; margin: 0; padding: 10px; background: #f3f4f6;
+    border-radius: 8px; font-size: 12px; white-space: pre-wrap; word-break: break-word; user-select: text;
+  }
+  #fileHint { font-size: 13px; color: #6b7280; }
+
   #busy {
     position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex;
     align-items: center; justify-content: center; z-index: 20; font-size: 17px;
@@ -109,9 +118,9 @@
 <body>
 
 <header id="top">
-  <button class="tbtn" id="btnOpen" title="PDF öffnen">📂</button>
+  <button class="tbtn" id="btnOpen" title="Datei öffnen">📂</button>
   <div class="title">
-    <div id="docname">PDF Notizen</div>
+    <div id="docname">File Reader</div>
     <div id="pageinfo"></div>
   </div>
   <button class="tbtn needs-doc" id="btnZoomOut" title="Verkleinern">−</button>
@@ -124,9 +133,9 @@
   <div id="pages"></div>
   <div id="empty">
     <div class="big">📄</div>
-    <p>Öffne ein PDF, mach deine Notizen darauf und schick es direkt per WhatsApp oder Mail weiter.</p>
-    <button class="tbtn primary" id="btnOpen2">PDF öffnen</button>
-    <p style="font-size:13px;color:#d1d5db">Tipp: Du kannst ein PDF auch aus WhatsApp oder Gmail über „Teilen“ an diese App schicken.</p>
+    <p>Öffne ein PDF, mach deine Notizen darauf und schick es direkt per WhatsApp oder Mail weiter. Andere Dateien (APK, ZIP, Bilder …) kannst du teilen oder ausführen.</p>
+    <button class="tbtn primary" id="btnOpen2">Datei öffnen</button>
+    <p style="font-size:13px;color:#d1d5db">Tipp: In der Dateien-App eine Datei lange antippen → „Öffnen mit“ oder „Teilen“ → „File Reader“.</p>
   </div>
 </main>
 
@@ -146,7 +155,19 @@
   </nav>
 </footer>
 
-<input type="file" id="fileInput" accept="application/pdf,.pdf" hidden>
+<input type="file" id="fileInput" hidden>
+
+<div class="modal" id="fileModal" hidden>
+  <div class="box">
+    <h2 id="fileName">Datei</h2>
+    <div id="fileInfo"></div>
+    <div id="filePreview"></div>
+    <button class="tbtn primary full" id="fileShare">📤 Teilen (WhatsApp, Mail …)</button>
+    <button class="tbtn full" id="fileRun">▶️ Öffnen / Ausführen</button>
+    <div id="fileHint"></div>
+    <div class="row"><button class="tbtn" id="fileClose">Schließen</button></div>
+  </div>
+</div>
 
 <div class="modal" id="textModal" hidden>
   <div class="box">

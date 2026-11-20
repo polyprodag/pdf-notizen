@@ -1,7 +1,7 @@
 {
-  "name": "PDF Notizen",
-  "short_name": "PDF Notizen",
-  "description": "PDFs lesen, beschriften und per WhatsApp oder Mail weiterschicken.",
+  "name": "File Reader",
+  "short_name": "File Reader",
+  "description": "Dateien öffnen, teilen und ausführen – PDFs lesen, beschriften und per WhatsApp oder Mail weiterschicken.",
   "lang": "de",
   "start_url": "./",
   "scope": "./",
@@ -16,7 +16,22 @@
   "file_handlers": [
     {
       "action": "./",
-      "accept": { "application/pdf": [".pdf"] },
+      "accept": {
+        "application/pdf": [".pdf"],
+        "application/vnd.android.package-archive": [".apk"],
+        "application/zip": [".zip"],
+        "image/jpeg": [".jpg", ".jpeg"],
+        "image/png": [".png"],
+        "image/gif": [".gif"],
+        "image/webp": [".webp"],
+        "text/plain": [".txt", ".log", ".md"],
+        "text/csv": [".csv"],
+        "application/json": [".json"],
+        "video/mp4": [".mp4"],
+        "audio/mpeg": [".mp3"],
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"]
+      },
       "icons": [{ "src": "icon-192.png", "sizes": "192x192", "type": "image/png" }],
       "launch_type": "single-client"
     }
@@ -27,7 +42,7 @@
     "enctype": "multipart/form-data",
     "params": {
       "title": "title",
-      "files": [{ "name": "pdf", "accept": ["application/pdf", ".pdf"] }]
+      "files": [{ "name": "pdf", "accept": ["*/*"] }]
     }
   }
 }

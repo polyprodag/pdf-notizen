@@ -1,5 +1,5 @@
 'use strict';
-// PDF Notizen – PDFs lesen, beschriften und weiterschicken.
+// File Reader – PDFs lesen, beschriften und weiterschicken; andere Dateien teilen oder ausführen.
 // Notizen werden in PDF-Koordinaten gespeichert, damit sie beim Zoomen an der richtigen Stelle bleiben.
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'lib/pdf.worker.min.js';
@@ -78,6 +78,63 @@ async function openFile(file) {
   } finally {
     setBusy(null);
   }
+}
+
+// ---------- Andere Dateien (APK, ZIP, Bilder, Texte …): teilen oder ausführen ----------
+function isPdf(file) {
+  return /pdf$/i.test(file.type || '') || /\.pdf$/i.test(file.name || '');
+}
+
+function openAny(file) {
+  if (isPdf(file)) openFile(file);
+  else openOtherFile(file);
+}
+
+function formatSize(n) {
+  if (n < 1024) return n + ' Byte';
+  if (n < 1024 * 1024) return (n / 1024).toFixed(1).replace('.', ',') + ' KB';
+  return (n / 1024 / 1024).toFixed(1).replace('.', ',') + ' MB';
+}
+
+let previewUrl = null;
+async function openOtherFile(file) {
+  const name = file.name || 'Datei';
+  const isApk = /\.apk$/i.test(name) || file.type === 'application/vnd.android.package-archive';
+  $('#fileName').textContent = (isApk ? '📦 ' : '📄 ') + name;
+  $('#fileInfo').textContent = formatSize(file.size) + (file.type ? ' · ' + file.type : '');
+
+  // Vorschau für Bilder, Videos, Musik und Texte
+  const prev = $('#filePreview');
+  prev.innerHTML = '';
+  if (previewUrl) { URL.revokeObjectURL(previewUrl); previewUrl = null; }
+  const type = file.type || '';
+  if (/^(image|video|audio)\//.test(type)) {
+    previewUrl = URL.createObjectURL(file);
+    const el = document.createElement(type.split('/')[0] === 'image' ? 'img' : type.split('/')[0]);
+    el.src = previewUrl;
+    if (el.tagName !== 'IMG') el.controls = true;
+    prev.append(el);
+  } else if (/^text\/|json|xml/.test(type) || /\.(txt|log|md|csv|json|xml)$/i.test(name)) {
+    const pre = document.createElement('pre');
+    pre.textContent = await file.slice(0, 200000).text();
+    prev.append(pre);
+  }
+
+  const canShare = canShareFile(file);
+  $('#fileShare').hidden = !canShare;
+  $('#fileHint').textContent = (canShare ? '' : 'Diese Dateiart lässt Android aus Web-Apps nicht direkt teilen. Tipp: „Öffnen / Ausführen“ speichert sie in „Downloads“ – von dort kannst du sie teilen. ')
+    + (isApk ? '„Öffnen / Ausführen“ speichert die APK in „Downloads“. Tippe danach in der Chrome-Meldung auf „Öffnen“, dann startet die Installation. Beim ersten Mal fragt Android, ob Chrome Apps installieren darf.' : '');
+
+  $('#fileShare').onclick = async () => {
+    try { await shareFile(file); } catch (e) { if (e.name !== 'AbortError') alert('Teilen hat nicht geklappt: ' + e.message); }
+  };
+  $('#fileRun').onclick = () => download(file);
+  $('#fileClose').onclick = () => {
+    $('#fileModal').hidden = true;
+    prev.innerHTML = '';
+    if (previewUrl) { URL.revokeObjectURL(previewUrl); previewUrl = null; }
+  };
+  $('#fileModal').hidden = false;
 }
 
 // ---------- Seiten anzeigen ----------
@@ -517,7 +574,7 @@ $('#btnOpen2').addEventListener('click', () => $('#fileInput').click());
 $('#fileInput').addEventListener('change', (e) => {
   const f = e.target.files[0];
   e.target.value = '';
-  if (f) openFile(f);
+  if (f) openAny(f);
 });
 $('#btnZoomIn').addEventListener('click', () => setZoom(S.scale * 1.25));
 $('#btnZoomOut').addEventListener('click', () => setZoom(S.scale / 1.25));
@@ -528,8 +585,8 @@ $('#btnShare').addEventListener('click', onShare);
 window.addEventListener('dragover', (e) => e.preventDefault());
 window.addEventListener('drop', (e) => {
   e.preventDefault();
-  const f = [...e.dataTransfer.files].find((x) => /pdf$/i.test(x.type) || /\.pdf$/i.test(x.name));
-  if (f) openFile(f);
+  const f = e.dataTransfer.files[0];
+  if (f) openAny(f);
 });
 window.addEventListener('keydown', (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && $('#textModal').hidden) { e.preventDefault(); undo(); }
@@ -551,23 +608,23 @@ async function openSharedFile() {
     const cache = await caches.open('shared-files');
     const res = await cache.match('shared-file');
     if (!res) return;
-    const name = decodeURIComponent(res.headers.get('x-file-name') || 'Dokument.pdf');
+    const name = decodeURIComponent(res.headers.get('x-file-name') || 'Datei');
+    const type = res.headers.get('content-type') || 'application/octet-stream';
     const blob = await res.blob();
     await cache.delete('shared-file');
-    openFile(new File([blob], name, { type: 'application/pdf' }));
+    openAny(new File([blob], name, { type }));
   } catch (e) {
     console.error(e);
   }
 }
 
-// "Öffnen mit PDF Notizen" aus dem Kontextmenü (Explorer am PC, Dateien-App am Handy)
+// "Öffnen mit File Reader" aus dem Kontextmenü (Dateien-App am Handy)
 if ('launchQueue' in window) {
   window.launchQueue.setConsumer(async (params) => {
     if (!params.files || !params.files.length) return;
     try {
       const file = await params.files[0].getFile();
-      if (S.dirty && !confirm('Ungespeicherte Notizen gehen verloren. Trotzdem die neue Datei öffnen?')) return;
-      openFile(file);
+      openAny(file);
     } catch (e) {
       console.error(e);
     }
