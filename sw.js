@@ -1,6 +1,6 @@
 // Service Worker: macht die App offline nutzbar und empfängt PDFs,
 // die man aus anderen Apps (WhatsApp, Gmail, Dateien) an diese App "teilt".
-const CACHE = 'pdf-notizen-v1';
+const CACHE = 'pdf-notizen-v2';
 const FILES = [
   './', './index.html', './app.js', './manifest.webmanifest',
   './icon-192.png', './icon-512.png',

@@ -560,5 +560,19 @@ async function openSharedFile() {
   }
 }
 
+// "Öffnen mit PDF Notizen" aus dem Kontextmenü (Explorer am PC, Dateien-App am Handy)
+if ('launchQueue' in window) {
+  window.launchQueue.setConsumer(async (params) => {
+    if (!params.files || !params.files.length) return;
+    try {
+      const file = await params.files[0].getFile();
+      if (S.dirty && !confirm('Ungespeicherte Notizen gehen verloren. Trotzdem die neue Datei öffnen?')) return;
+      openFile(file);
+    } catch (e) {
+      console.error(e);
+    }
+  });
+}
+
 setTool('hand');
 openSharedFile();
